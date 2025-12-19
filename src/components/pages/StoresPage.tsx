@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
-import { Plus, Store, Mail, MapPin, Phone, ExternalLink, Edit, Trash2, Eye } from 'lucide-react';
+import { Plus, Store, Mail, MapPin, Phone, ExternalLink, Edit, Trash2, Eye, BarChart3 } from 'lucide-react';
 import { Image } from '@/components/ui/image';
 import { useNavigate } from 'react-router-dom';
 
@@ -145,7 +145,15 @@ export default function StoresPage() {
               Manage all store locations and their settings
             </p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <div className="flex items-center space-x-4">
+            <Button
+              onClick={() => navigate('/admin/stores/comparison')}
+              className="bg-soft-gold text-foreground hover:bg-soft-gold/90 rounded-lg h-auto py-3 px-6"
+            >
+              <BarChart3 className="w-5 h-5 mr-2" />
+              Compare Stores
+            </Button>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg h-auto py-3 px-6">
                 <Plus className="w-5 h-5 mr-2" />
@@ -270,7 +278,8 @@ export default function StoresPage() {
                 </div>
               </form>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

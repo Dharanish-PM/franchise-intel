@@ -18,6 +18,7 @@ import CustomerAnalyticsPage from '@/components/pages/CustomerAnalyticsPage';
 import InventoryPage from '@/components/pages/InventoryPage';
 import ReportsPage from '@/components/pages/ReportsPage';
 import ActivityLogPage from '@/components/pages/ActivityLogPage';
+import StoreComparisonPage from '@/components/pages/StoreComparisonPage';
 
 // Layout component that includes ScrollToTop
 function Layout() {
@@ -73,6 +74,14 @@ const router = createBrowserRouter([
         element: (
           <MemberProtectedRoute>
             <StoresPage />
+          </MemberProtectedRoute>
+        ),
+      },
+      {
+        path: "admin/stores/comparison",
+        element: (
+          <MemberProtectedRoute>
+            <StoreComparisonPage />
           </MemberProtectedRoute>
         ),
       },
