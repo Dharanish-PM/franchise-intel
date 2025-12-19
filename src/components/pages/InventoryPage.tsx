@@ -1,16 +1,18 @@
 import { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { BaseCrudService } from '@/integrations';
-import { InventoryItems } from '@/entities';
+import { InventoryItems, Stores } from '@/entities';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { motion } from 'framer-motion';
 import { Search, Package, AlertTriangle, TrendingUp, DollarSign, Plus, Edit, Trash2 } from 'lucide-react';
 import { Image } from '@/components/ui/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { useStoreContext } from '@/store/storeContext';
 
 interface InventoryPageProps {
   role: 'admin' | 'store';
@@ -18,11 +20,13 @@ interface InventoryPageProps {
 
 export default function InventoryPage({ role }: InventoryPageProps) {
   const [inventory, setInventory] = useState<InventoryItems[]>([]);
+  const [stores, setStores] = useState<Stores[]>([]);
   const [filteredInventory, setFilteredInventory] = useState<InventoryItems[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItems | null>(null);
+  const { selectedStoreId, setSelectedStoreId } = useStoreContext();
   const [formData, setFormData] = useState({
     itemName: '',
     sku: '',
@@ -33,15 +37,25 @@ export default function InventoryPage({ role }: InventoryPageProps) {
   });
 
   useEffect(() => {
-    fetchInventory();
-  }, []);
+    const fetchData = async () => {
+      const [inventoryData, storesData] = await Promise.all([
+        BaseCrudService.getAll<InventoryItems>('inventoryitems', ['stores']),
+        BaseCrudService.getAll<Stores>('stores'),
+      ]);
+      setInventory(inventoryData.items);
+      setStores(storesData.items);
+      setFilteredInventory(inventoryData.items);
+      
+      // Set first store as default if not already selected
+      if (storesData.items.length > 0 && !selectedStoreId && role === 'store') {
+        setSelectedStoreId(storesData.items[0]._id);
+      }
+      
+      setLoading(false);
+    };
 
-  const fetchInventory = async () => {
-    const inventoryData = await BaseCrudService.getAll<InventoryItems>('inventoryitems', ['stores']);
-    setInventory(inventoryData.items);
-    setFilteredInventory(inventoryData.items);
-    setLoading(false);
-  };
+    fetchData();
+  }, [selectedStoreId, setSelectedStoreId, role]);
 
   useEffect(() => {
     let filtered = [...inventory];
@@ -82,7 +96,9 @@ export default function InventoryPage({ role }: InventoryPageProps) {
     setIsDialogOpen(false);
     setEditingItem(null);
     resetForm();
-    fetchInventory();
+    const inventoryData = await BaseCrudService.getAll<InventoryItems>('inventoryitems', ['stores']);
+    setInventory(inventoryData.items);
+    setFilteredInventory(inventoryData.items);
   };
 
   const resetForm = () => {
@@ -112,7 +128,9 @@ export default function InventoryPage({ role }: InventoryPageProps) {
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this item?')) {
       await BaseCrudService.delete('inventoryitems', id);
-      fetchInventory();
+      const inventoryData = await BaseCrudService.getAll<InventoryItems>('inventoryitems', ['stores']);
+      setInventory(inventoryData.items);
+      setFilteredInventory(inventoryData.items);
     }
   };
 
@@ -139,105 +157,121 @@ export default function InventoryPage({ role }: InventoryPageProps) {
               Track and manage inventory levels
             </p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg h-auto py-3 px-6">
-                <Plus className="w-5 h-5 mr-2" />
-                Add Item
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle className="font-heading text-2xl">
-                  {editingItem ? 'Edit Item' : 'Add New Item'}
-                </DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <Label htmlFor="itemName" className="font-paragraph">Item Name</Label>
-                  <Input
-                    id="itemName"
-                    value={formData.itemName}
-                    onChange={(e) => setFormData({ ...formData, itemName: e.target.value })}
-                    required
-                    className="font-paragraph"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="sku" className="font-paragraph">SKU</Label>
-                  <Input
-                    id="sku"
-                    value={formData.sku}
-                    onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                    required
-                    className="font-paragraph"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+          <div className="flex items-center space-x-4">
+            {role === 'store' && stores.length > 0 && (
+              <Select value={selectedStoreId || ''} onValueChange={setSelectedStoreId}>
+                <SelectTrigger className="font-paragraph w-64">
+                  <SelectValue placeholder="Select a store" />
+                </SelectTrigger>
+                <SelectContent>
+                  {stores.map((store) => (
+                    <SelectItem key={store._id} value={store._id}>
+                      {store.storeName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg h-auto py-3 px-6">
+                  <Plus className="w-5 h-5 mr-2" />
+                  Add Item
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle className="font-heading text-2xl">
+                    {editingItem ? 'Edit Item' : 'Add New Item'}
+                  </DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
-                    <Label htmlFor="currentStock" className="font-paragraph">Current Stock</Label>
+                    <Label htmlFor="itemName" className="font-paragraph">Item Name</Label>
                     <Input
-                      id="currentStock"
-                      type="number"
-                      value={formData.currentStock}
-                      onChange={(e) => setFormData({ ...formData, currentStock: Number(e.target.value) })}
+                      id="itemName"
+                      value={formData.itemName}
+                      onChange={(e) => setFormData({ ...formData, itemName: e.target.value })}
                       required
                       className="font-paragraph"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="reorderLevel" className="font-paragraph">Reorder Level</Label>
+                    <Label htmlFor="sku" className="font-paragraph">SKU</Label>
                     <Input
-                      id="reorderLevel"
-                      type="number"
-                      value={formData.reorderLevel}
-                      onChange={(e) => setFormData({ ...formData, reorderLevel: Number(e.target.value) })}
+                      id="sku"
+                      value={formData.sku}
+                      onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
                       required
                       className="font-paragraph"
                     />
                   </div>
-                </div>
-                <div>
-                  <Label htmlFor="unitCost" className="font-paragraph">Unit Cost ($)</Label>
-                  <Input
-                    id="unitCost"
-                    type="number"
-                    step="0.01"
-                    value={formData.unitCost}
-                    onChange={(e) => setFormData({ ...formData, unitCost: Number(e.target.value) })}
-                    required
-                    className="font-paragraph"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="itemImage" className="font-paragraph">Item Image URL</Label>
-                  <Input
-                    id="itemImage"
-                    value={formData.itemImage}
-                    onChange={(e) => setFormData({ ...formData, itemImage: e.target.value })}
-                    className="font-paragraph"
-                  />
-                </div>
-                <div className="flex justify-end space-x-3 pt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setIsDialogOpen(false);
-                      setEditingItem(null);
-                      resetForm();
-                    }}
-                    className="rounded-lg"
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg">
-                    {editingItem ? 'Update' : 'Create'} Item
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="currentStock" className="font-paragraph">Current Stock</Label>
+                      <Input
+                        id="currentStock"
+                        type="number"
+                        value={formData.currentStock}
+                        onChange={(e) => setFormData({ ...formData, currentStock: Number(e.target.value) })}
+                        required
+                        className="font-paragraph"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="reorderLevel" className="font-paragraph">Reorder Level</Label>
+                      <Input
+                        id="reorderLevel"
+                        type="number"
+                        value={formData.reorderLevel}
+                        onChange={(e) => setFormData({ ...formData, reorderLevel: Number(e.target.value) })}
+                        required
+                        className="font-paragraph"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="unitCost" className="font-paragraph">Unit Cost ($)</Label>
+                    <Input
+                      id="unitCost"
+                      type="number"
+                      step="0.01"
+                      value={formData.unitCost}
+                      onChange={(e) => setFormData({ ...formData, unitCost: Number(e.target.value) })}
+                      required
+                      className="font-paragraph"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="itemImage" className="font-paragraph">Item Image URL</Label>
+                    <Input
+                      id="itemImage"
+                      value={formData.itemImage}
+                      onChange={(e) => setFormData({ ...formData, itemImage: e.target.value })}
+                      className="font-paragraph"
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-3 pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setIsDialogOpen(false);
+                        setEditingItem(null);
+                        resetForm();
+                      }}
+                      className="rounded-lg"
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg">
+                      {editingItem ? 'Update' : 'Create'} Item
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {/* Search */}

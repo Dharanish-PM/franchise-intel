@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { BaseCrudService } from '@/integrations';
-import { Orders } from '@/entities';
+import { Orders, Stores } from '@/entities';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -10,6 +10,7 @@ import { motion } from 'framer-motion';
 import { Search, Filter, Download, TrendingUp, ShoppingCart, DollarSign, Clock } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Button } from '@/components/ui/button';
+import { useStoreContext } from '@/store/storeContext';
 
 interface OrderAnalyticsPageProps {
   role: 'admin' | 'store';
@@ -17,25 +18,46 @@ interface OrderAnalyticsPageProps {
 
 export default function OrderAnalyticsPage({ role }: OrderAnalyticsPageProps) {
   const [orders, setOrders] = useState<Orders[]>([]);
+  const [stores, setStores] = useState<Stores[]>([]);
   const [filteredOrders, setFilteredOrders] = useState<Orders[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
+  const { selectedStoreId, setSelectedStoreId } = useStoreContext();
 
   useEffect(() => {
     const fetchData = async () => {
-      const ordersData = await BaseCrudService.getAll<Orders>('orders', ['customers', 'stores']);
+      const [ordersData, storesData] = await Promise.all([
+        BaseCrudService.getAll<Orders>('orders', ['customers', 'stores']),
+        BaseCrudService.getAll<Stores>('stores'),
+      ]);
       setOrders(ordersData.items);
-      setFilteredOrders(ordersData.items);
+      setStores(storesData.items);
+      
+      // Set first store as default if not already selected
+      if (storesData.items.length > 0 && !selectedStoreId && role === 'store') {
+        setSelectedStoreId(storesData.items[0]._id);
+      }
+      
       setLoading(false);
     };
 
     fetchData();
-  }, []);
+  }, [selectedStoreId, setSelectedStoreId, role]);
 
   useEffect(() => {
     let filtered = [...orders];
+
+    // Filter by store if in store manager role
+    if (role === 'store' && selectedStoreId) {
+      filtered = filtered.filter(order => {
+        if (Array.isArray(order.stores)) {
+          return order.stores.some(s => s._id === selectedStoreId);
+        }
+        return false;
+      });
+    }
 
     if (searchQuery) {
       filtered = filtered.filter(order =>
@@ -67,7 +89,7 @@ export default function OrderAnalyticsPage({ role }: OrderAnalyticsPageProps) {
     }
 
     setFilteredOrders(filtered);
-  }, [searchQuery, statusFilter, dateFilter, orders]);
+  }, [searchQuery, statusFilter, dateFilter, orders, selectedStoreId, role]);
 
   const totalRevenue = filteredOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
   const avgOrderValue = totalRevenue / (filteredOrders.length || 1);
@@ -136,13 +158,29 @@ export default function OrderAnalyticsPage({ role }: OrderAnalyticsPageProps) {
               Comprehensive order data and insights
             </p>
           </div>
-          <Button
-            onClick={handleExport}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg h-auto py-3 px-6"
-          >
-            <Download className="w-5 h-5 mr-2" />
-            Export Report
-          </Button>
+          <div className="flex items-center space-x-4">
+            {role === 'store' && stores.length > 0 && (
+              <Select value={selectedStoreId || ''} onValueChange={setSelectedStoreId}>
+                <SelectTrigger className="font-paragraph w-64">
+                  <SelectValue placeholder="Select a store" />
+                </SelectTrigger>
+                <SelectContent>
+                  {stores.map((store) => (
+                    <SelectItem key={store._id} value={store._id}>
+                      {store.storeName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Button
+              onClick={handleExport}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg h-auto py-3 px-6"
+            >
+              <Download className="w-5 h-5 mr-2" />
+              Export Report
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}

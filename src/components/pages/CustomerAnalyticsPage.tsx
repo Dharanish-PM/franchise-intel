@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { BaseCrudService } from '@/integrations';
-import { Customers } from '@/entities';
+import { Customers, Stores } from '@/entities';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { Search, Download, Users, TrendingUp, DollarSign, ShoppingCart } from 'lucide-react';
 import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useStoreContext } from '@/store/storeContext';
 
 interface CustomerAnalyticsPageProps {
   role: 'admin' | 'store';
@@ -17,21 +18,33 @@ interface CustomerAnalyticsPageProps {
 
 export default function CustomerAnalyticsPage({ role }: CustomerAnalyticsPageProps) {
   const [customers, setCustomers] = useState<Customers[]>([]);
+  const [stores, setStores] = useState<Stores[]>([]);
   const [filteredCustomers, setFilteredCustomers] = useState<Customers[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [genderFilter, setGenderFilter] = useState('all');
+  const { selectedStoreId, setSelectedStoreId } = useStoreContext();
 
   useEffect(() => {
     const fetchData = async () => {
-      const customersData = await BaseCrudService.getAll<Customers>('customers', ['orders']);
+      const [customersData, storesData] = await Promise.all([
+        BaseCrudService.getAll<Customers>('customers', ['orders']),
+        BaseCrudService.getAll<Stores>('stores'),
+      ]);
       setCustomers(customersData.items);
+      setStores(storesData.items);
       setFilteredCustomers(customersData.items);
+      
+      // Set first store as default if not already selected
+      if (storesData.items.length > 0 && !selectedStoreId && role === 'store') {
+        setSelectedStoreId(storesData.items[0]._id);
+      }
+      
       setLoading(false);
     };
 
     fetchData();
-  }, []);
+  }, [selectedStoreId, setSelectedStoreId, role]);
 
   useEffect(() => {
     let filtered = [...customers];
@@ -122,13 +135,29 @@ export default function CustomerAnalyticsPage({ role }: CustomerAnalyticsPagePro
               Customer behavior and demographics insights
             </p>
           </div>
-          <Button
-            onClick={handleExport}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg h-auto py-3 px-6"
-          >
-            <Download className="w-5 h-5 mr-2" />
-            Export Report
-          </Button>
+          <div className="flex items-center space-x-4">
+            {role === 'store' && stores.length > 0 && (
+              <Select value={selectedStoreId || ''} onValueChange={setSelectedStoreId}>
+                <SelectTrigger className="font-paragraph w-64">
+                  <SelectValue placeholder="Select a store" />
+                </SelectTrigger>
+                <SelectContent>
+                  {stores.map((store) => (
+                    <SelectItem key={store._id} value={store._id}>
+                      {store.storeName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Button
+              onClick={handleExport}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg h-auto py-3 px-6"
+            >
+              <Download className="w-5 h-5 mr-2" />
+              Export Report
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
