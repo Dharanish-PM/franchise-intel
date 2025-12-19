@@ -29,7 +29,7 @@ export default function OrderAnalyticsPage({ role }: OrderAnalyticsPageProps) {
   useEffect(() => {
     const fetchData = async () => {
       const [ordersData, storesData] = await Promise.all([
-        BaseCrudService.getAll<Orders>('orders', ['customers', 'stores']),
+        BaseCrudService.getAll<Orders>('orders'),
         BaseCrudService.getAll<Stores>('stores'),
       ]);
       setOrders(ordersData.items);

@@ -1,7 +1,6 @@
 import { ReactNode, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useMember } from '@/integrations';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -17,7 +16,6 @@ import {
   LogOut,
   User,
   Building2,
-  BarChart3,
   Menu,
   X,
 } from 'lucide-react';
@@ -138,6 +136,14 @@ export default function DashboardLayout({ children, role }: DashboardLayoutProps
               >
                 {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
+
+              {/* User Role Badge */}
+              <div className="flex items-center space-x-2">
+                <Badge className="bg-primary text-primary-foreground text-xs font-semibold px-3 py-1">
+                  {member?.role === 'ADMIN' ? '👤 Admin' : member?.role === 'STORE_MANAGER' ? '🏪 Store Manager' : '👥 Staff'}
+                </Badge>
+              </div>
+
               <form onSubmit={handleSearch} className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-secondary" />
                 <Input

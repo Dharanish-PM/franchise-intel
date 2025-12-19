@@ -30,7 +30,7 @@ export default function FranchisesPage() {
   }, []);
 
   const fetchFranchises = async () => {
-    const data = await BaseCrudService.getAll<Franchises>('franchises', ['stores']);
+    const data = await BaseCrudService.getAll<Franchises>('franchises');
     setFranchises(data.items);
     setLoading(false);
   };

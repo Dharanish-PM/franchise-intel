@@ -28,7 +28,7 @@ export default function CustomerAnalyticsPage({ role }: CustomerAnalyticsPagePro
   useEffect(() => {
     const fetchData = async () => {
       const [customersData, storesData] = await Promise.all([
-        BaseCrudService.getAll<Customers>('customers', ['orders']),
+        BaseCrudService.getAll<Customers>('customers'),
         BaseCrudService.getAll<Stores>('stores'),
       ]);
       setCustomers(customersData.items);

@@ -22,7 +22,7 @@ export default function StoreProfilePage() {
       if (!storeId) return;
 
       const [storeData, ordersData, inventoryData] = await Promise.all([
-        BaseCrudService.getById<Stores>('stores', storeId, ['franchises']),
+        BaseCrudService.getById<Stores>('stores', storeId),
         BaseCrudService.getAll<Orders>('orders'),
         BaseCrudService.getAll<InventoryItems>('inventoryitems'),
       ]);

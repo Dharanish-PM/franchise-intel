@@ -23,7 +23,7 @@ export default function ActivityLogPage({ role }: ActivityLogPageProps) {
 
   useEffect(() => {
     const fetchData = async () => {
-      const logsData = await BaseCrudService.getAll<ActivityLogs>('activitylogs', ['customers']);
+      const logsData = await BaseCrudService.getAll<ActivityLogs>('activitylogs');
       setLogs(logsData.items);
       setFilteredLogs(logsData.items);
       setLoading(false);

@@ -63,9 +63,9 @@ export default function StoreComparisonPage() {
     const fetchData = async () => {
       const [storesData, ordersData, customersData, inventoryData] = await Promise.all([
         BaseCrudService.getAll<Stores>('stores'),
-        BaseCrudService.getAll<Orders>('orders', ['stores']),
-        BaseCrudService.getAll<Customers>('customers', ['orders']),
-        BaseCrudService.getAll<InventoryItems>('inventoryitems', ['stores']),
+        BaseCrudService.getAll<Orders>('orders'),
+        BaseCrudService.getAll<Customers>('customers'),
+        BaseCrudService.getAll<InventoryItems>('inventoryitems'),
       ]);
 
       setStores(storesData.items);

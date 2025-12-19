@@ -38,7 +38,7 @@ export default function StoresPage() {
 
   const fetchData = async () => {
     const [storesData, franchisesData] = await Promise.all([
-      BaseCrudService.getAll<Stores>('stores', ['franchises']),
+      BaseCrudService.getAll<Stores>('stores'),
       BaseCrudService.getAll<Franchises>('franchises'),
     ]);
     setStores(storesData.items);

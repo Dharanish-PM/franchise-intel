@@ -39,7 +39,7 @@ export default function InventoryPage({ role }: InventoryPageProps) {
   useEffect(() => {
     const fetchData = async () => {
       const [inventoryData, storesData] = await Promise.all([
-        BaseCrudService.getAll<InventoryItems>('inventoryitems', ['stores']),
+        BaseCrudService.getAll<InventoryItems>('inventoryitems'),
         BaseCrudService.getAll<Stores>('stores'),
       ]);
       setInventory(inventoryData.items);
@@ -96,7 +96,7 @@ export default function InventoryPage({ role }: InventoryPageProps) {
     setIsDialogOpen(false);
     setEditingItem(null);
     resetForm();
-    const inventoryData = await BaseCrudService.getAll<InventoryItems>('inventoryitems', ['stores']);
+    const inventoryData = await BaseCrudService.getAll<InventoryItems>('inventoryitems');
     setInventory(inventoryData.items);
     setFilteredInventory(inventoryData.items);
   };
@@ -128,7 +128,7 @@ export default function InventoryPage({ role }: InventoryPageProps) {
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this item?')) {
       await BaseCrudService.delete('inventoryitems', id);
-      const inventoryData = await BaseCrudService.getAll<InventoryItems>('inventoryitems', ['stores']);
+      const inventoryData = await BaseCrudService.getAll<InventoryItems>('inventoryitems');
       setInventory(inventoryData.items);
       setFilteredInventory(inventoryData.items);
     }

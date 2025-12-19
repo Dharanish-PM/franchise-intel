@@ -1,4 +1,15 @@
-import { items } from "@wix/data";
+// Generic type definitions (replacing Wix-specific types)
 
-export type WixDataItem = items.WixDataItem;
-export type WixDataQueryResult = items.WixDataResult;
+export interface WixDataItem {
+  _id: string;
+  [key: string]: any;
+}
+
+export interface WixDataQueryResult<T = any> {
+  items: T[];
+  pageInfo?: {
+    pageNumber: number;
+    pageSize: number;
+    total: number;
+  };
+}

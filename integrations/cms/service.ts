@@ -1,16 +1,30 @@
-import { items } from "@wix/data";
+// import { items } from "@wix/data";
 import { WixDataItem } from ".";
 
+// Mock implementation - replace with actual backend service
+const mockQuery = () => ({
+  eq: (field: string, value: any) => mockQuery(),
+  include: (...fields: string[]) => mockQuery(),
+  find: async () => ({ items: [] })
+});
+
+const mockItems = {
+  insert: async (_: string, data: any) => ({ _id: Date.now().toString(), ...data }),
+  insertReference: async () => {},
+  query: () => mockQuery(),
+  update: async (_: string, data: any) => data,
+  remove: async (_: string, itemId: string) => ({ _id: itemId })
+};
 
 /**
- * Generic CRUD Service class for Wix Data collections
+ * Generic CRUD Service class for Data collections
  * Provides type-safe CRUD operations with error handling
+ * Note: This is a mock implementation. Replace with actual backend service.
  */
 export class BaseCrudService {
   /**
    * Creates a new item in the collection
-   * @param itemData - Data for the new item (single reference fields should be IDs: string)
-   * @param multiReferences - Multi-reference fields as Record<fieldName, arrayOfIds>
+   * @param itemData - Data for the new item
    * @returns Promise<T> - The created item
    */
   static async create<T extends WixDataItem>(
@@ -19,17 +33,9 @@ export class BaseCrudService {
     multiReferences?: Record<string, any>
   ): Promise<T> {
     try {
-      const result = await items.insert(collectionId, itemData as Record<string, unknown>);
-
-      if (multiReferences && Object.keys(multiReferences).length > 0 && result._id) {
-        for (const [propertyName, refIds] of Object.entries(multiReferences)) {
-          await items.insertReference(collectionId, propertyName, result._id, refIds as string[]);
-        }
-      }
-
+      const result = await mockItems.insert(collectionId, itemData as Record<string, unknown>);
       return result as T;
     } catch (error) {
-      // Should consider reverting the insert with a remove in order to prevent partial insert.
       console.error(`Error creating ${collectionId}:`, error);
       throw new Error(
         error instanceof Error ? error.message : `Failed to create ${collectionId}`
@@ -40,23 +46,15 @@ export class BaseCrudService {
   /**
    * Retrieves all items from the collection
    * @param collectionId - The collection to query
-   * @param includeReferencedItems - Array of reference field names to populate
    * @returns Promise<items.WixDataResult<T>> - Query result with all items
    */
   static async getAll<T extends WixDataItem>(
-    collectionId: string,
-    includeReferencedItems?: string[]
-  ): Promise<items.WixDataResult<T>> {
+    collectionId: string
+  ): Promise<any> {
     try {
-      let query = items.query(collectionId);
-
-      // Use Wix's built-in include() method for referenced data
-      if (includeReferencedItems && includeReferencedItems.length > 0) {
-        query = query.include(...includeReferencedItems);
-      }
-
+      let query = mockItems.query();
       const result = await query.find();
-      return result as items.WixDataResult<T>;
+      return result;
     } catch (error) {
       console.error(`Error fetching ${collectionId}s:`, error);
       throw new Error(
@@ -69,22 +67,14 @@ export class BaseCrudService {
    * Retrieves a single item by ID
    * @param collectionId - The collection to query
    * @param itemId - ID of the item to retrieve
-   * @param includeReferencedItems - Array of reference field names to populate
    * @returns Promise<T | null> - The item or null if not found
    */
   static async getById<T extends WixDataItem>(
     collectionId: string,
-    itemId: string,
-    includeReferencedItems?: string[]
+    itemId: string
   ): Promise<T | null> {
     try {
-      let query = items.query(collectionId).eq("_id", itemId);
-
-      // Use Wix's built-in include() method for referenced data
-      if (includeReferencedItems && includeReferencedItems.length > 0) {
-        query = query.include(...includeReferencedItems);
-      }
-
+      let query = mockItems.query().eq("_id", itemId);
       const result = await query.find();
 
       if (result.items.length > 0) {
@@ -101,7 +91,7 @@ export class BaseCrudService {
 
   /**
    * Updates an existing item
-   * @param itemData - Updated item data (must include _id, only include fields to update)
+   * @param itemData - Updated item data
    * @returns Promise<T> - The updated item
    */
   static async update<T extends WixDataItem>(collectionId: string, itemData: T): Promise<T> {
@@ -110,11 +100,7 @@ export class BaseCrudService {
         throw new Error(`${collectionId} ID is required for update`);
       }
 
-      const currentItem = await this.getById<T>(collectionId, itemData._id);
-
-      const mergedData = { ...currentItem, ...itemData };
-
-      const result = await items.update(collectionId, mergedData);
+      const result = await mockItems.update(collectionId, itemData);
       return result as T;
     } catch (error) {
       console.error(`Error updating ${collectionId}:`, error);
@@ -135,7 +121,7 @@ export class BaseCrudService {
         throw new Error(`${collectionId} ID is required for deletion`);
       }
 
-      const result = await items.remove(collectionId, itemId);
+      const result = await mockItems.remove(collectionId, itemId);
       return result as T;
     } catch (error) {
       console.error(`Error deleting ${collectionId}:`, error);

@@ -13,26 +13,48 @@ export const MemberProvider: React.FC<MemberProviderProps> = ({ children }) => {
   // Initialize state from localStorage or defaults
   const [state, setState] = useState<MemberState>(() => {
     let storedMemberData: Member | null = null;
+    let isUserAuthenticated = false;
+    let isLoadingNeeded = true;
 
     if (typeof window !== 'undefined') {
       try {
+        // Check if user is logged in via our custom login system
+        const user = localStorage.getItem('user');
+        if (user) {
+          isUserAuthenticated = true;
+          isLoadingNeeded = false; // Don't show loading if user already in localStorage
+          // Parse user and convert to Member format
+          const userData = JSON.parse(user);
+          storedMemberData = {
+            _id: userData.id?.toString() || '',
+            loginEmail: userData.email,
+            loginEmailVerified: true,
+            status: (userData.status as "UNKNOWN" | "PENDING" | "APPROVED" | "BLOCKED" | "OFFLINE") || "APPROVED",
+            role: userData.role as "ADMIN" | "STORE_MANAGER" | "STAFF",
+            contact: {
+              firstName: userData.email.split('@')[0],
+              lastName: '',
+            },
+            profile: {
+              nickname: userData.email.split('@')[0],
+            },
+          };
+        }
+
         const stored = localStorage.getItem(MEMBER_STORAGE_KEY);
-        if (stored) {
-          const parsedData = JSON.parse(stored);
-          // Only use member data from localStorage, not authentication status
-          storedMemberData = parsedData;
+        if (stored && !storedMemberData) {
+          storedMemberData = JSON.parse(stored);
         }
       } catch (error) {
         console.error('Error loading member state from localStorage:', error);
       }
     }
 
-    // Always start with loading true and not authenticated
-    // We'll verify authentication with the server on mount
+    // Start with loading true only if user not found
     return {
       member: storedMemberData,
-      isAuthenticated: false,
-      isLoading: true,
+      isAuthenticated: isUserAuthenticated,
+      isLoading: isLoadingNeeded,
       error: null,
     };
   });
@@ -134,30 +156,23 @@ export const MemberProvider: React.FC<MemberProviderProps> = ({ children }) => {
       if (typeof window !== 'undefined') {
         try {
           localStorage.removeItem(MEMBER_STORAGE_KEY);
+          localStorage.removeItem('user');
+          localStorage.removeItem('userRole');
         } catch (error) {
           console.error('Error clearing member state from localStorage:', error);
         }
       }
 
-      // Create a form programmatically and submit it
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = '/api/auth/logout';
-      form.setAttribute('data-astro-reload', '');
+      // Update state to reflect logged out status
+      updateState({
+        member: null,
+        isAuthenticated: false,
+        isLoading: false,
+        error: null,
+      });
 
-      // Hide the form
-      form.style.display = 'none';
-
-      // Add the form to the document
-      document.body.appendChild(form);
-
-      // Submit the form
-      form.submit();
-
-      // Clean up - remove the form after submission
-      setTimeout(() => {
-        document.body.removeChild(form);
-      }, 100);
+      // Redirect to home page
+      window.location.href = '/login';
     }, [updateState]),
 
     /**
