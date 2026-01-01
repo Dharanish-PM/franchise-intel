@@ -14,6 +14,6 @@ public class OpenApiConfig {
                 .info(new Info()
                         .title("Franchise Intel API")
                         .version("1.0.0")
-                        .description("API for Franchise Intelligence Platform - S3 Data Access"));
+                        .description("API for Franchise Intelligence Platform"));
     }
 }
