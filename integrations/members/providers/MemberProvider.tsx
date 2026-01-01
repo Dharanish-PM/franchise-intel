@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, ReactNode } from 'react';
 import { MemberActions, MemberContext, MemberState } from '.';
 import { getCurrentMember, Member } from '..';
+import { useUserStore } from '@/store/userStore';
 
 // Local storage key
 const MEMBER_STORAGE_KEY = 'member-store';
@@ -10,6 +11,8 @@ interface MemberProviderProps {
 }
 
 export const MemberProvider: React.FC<MemberProviderProps> = ({ children }) => {
+  const { clearUser } = useUserStore();
+  
   // Initialize state from localStorage or defaults
   const [state, setState] = useState<MemberState>(() => {
     let storedMemberData: Member | null = null;
@@ -152,6 +155,9 @@ export const MemberProvider: React.FC<MemberProviderProps> = ({ children }) => {
      * Logout action
      */
     logout: useCallback(() => {
+      // Clear user store
+      clearUser();
+      
       // Clear localStorage immediately
       if (typeof window !== 'undefined') {
         try {
@@ -173,7 +179,7 @@ export const MemberProvider: React.FC<MemberProviderProps> = ({ children }) => {
 
       // Redirect to home page
       window.location.href = '/login';
-    }, [updateState]),
+    }, [updateState, clearUser]),
 
     /**
      * Clear member state

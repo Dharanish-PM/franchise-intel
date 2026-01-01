@@ -3,160 +3,67 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Layers, ArrowLeft, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { useUserStore } from '@/store/userStore';
 
-interface User {
-  id: number;
-  role: string;
-  email: string;
-  password: string;
+interface LoginResponse {
   status: string;
-}
-
-interface ApiResponse {
-  status: number;
   message: string;
-  data: User[];
-  errors: null;
+  data: {
+    userId: number;
+    username: string;
+    email: string;
+    role: string;
+    brandId: number;
+    franchiseId: number | null;
+    isActive: boolean;
+  };
 }
-
-// API Configuration
-const API_BASE_URL = 'http://localhost:8080/api';
-const API_ENDPOINTS = {
-  getAllUsers: `${API_BASE_URL}/user-controller/getAllUsers`,
-};
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { setUser } = useUserStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [users, setUsers] = useState<User[]>([]);
-  const [usersLoaded, setUsersLoaded] = useState(false);
-
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
-    try {
-      console.log('[LoginPage] Fetching users...');
-      const response = await fetch(API_ENDPOINTS.getAllUsers, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json'
-        },
-        mode: 'cors'
-      });
-
-      console.log('[LoginPage] Response status:', response.status);
-
-      if (!response.ok) {
-        console.error('[LoginPage] HTTP error:', response.status);
-        // Continue to fallback
-      } else {
-        const data: ApiResponse = await response.json();
-        console.log('[LoginPage] Data received:', data);
-
-        if (data.status === 200 && data.data) {
-          const activeUsers = data.data.filter(user => user.status === 'ACTIVE');
-          console.log('[LoginPage] Active users found:', activeUsers.length);
-          setUsers(activeUsers);
-          setUsersLoaded(true);
-          return;
-        }
-      }
-
-      // Fallback to demo data
-      console.log('[LoginPage] Using fallback demo data');
-      const fallbackUsers = [
-        { id: 1, role: 'ADMIN', email: 'admin@franchiseintel.com', password: 'Admin@123', status: 'ACTIVE' },
-        { id: 2, role: 'STORE_MANAGER', email: 'manager1@franchiseintel.com', password: 'Manager@123', status: 'ACTIVE' },
-        { id: 4, role: 'STAFF', email: 'staff1@franchiseintel.com', password: 'Staff@123', status: 'ACTIVE' }
-      ];
-      setUsers(fallbackUsers);
-      setUsersLoaded(true);
-    } catch (err) {
-      console.error('[LoginPage] Error fetching users:', err);
-      console.log('[LoginPage] Using fallback demo data');
-      const fallbackUsers = [
-        { id: 1, role: 'ADMIN', email: 'admin@franchiseintel.com', password: 'Admin@123', status: 'ACTIVE' },
-        { id: 2, role: 'STORE_MANAGER', email: 'manager1@franchiseintel.com', password: 'Manager@123', status: 'ACTIVE' },
-        { id: 4, role: 'STAFF', email: 'staff1@franchiseintel.com', password: 'Staff@123', status: 'ACTIVE' }
-      ];
-      setUsers(fallbackUsers);
-      setUsersLoaded(true);
-    }
-  };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     setError('');
 
-    // Validate inputs
-    if (!email.trim() || !password.trim()) {
-      setError('Email and password are required');
-      return;
-    }
-
-    // Check if users have been loaded
-    if (!usersLoaded) {
-      setError('Loading user data, please wait...');
-      return;
-    }
-
-    setLoading(true);
-
     try {
-      console.log('[LoginPage] Login attempt:', { email });
+      const response = await fetch('http://localhost:8080/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-      // Search for user in the fetched users array
-      const user = users.find(u => u.email === email && u.password === password);
+      const data: LoginResponse = await response.json();
 
-      if (user) {
-        console.log('[LoginPage] Login successful for user:', user.email, 'with role:', user.role);
-        localStorage.setItem('user', JSON.stringify(user));
-        localStorage.setItem('userRole', user.role);
-
-        // Role-based redirection
-        let dashboardPath = '/';
-        switch(user.role) {
-          case 'ADMIN':
-            dashboardPath = '/admin/dashboard';
-            console.log('[LoginPage] Redirecting ADMIN to:', dashboardPath);
-            break;
-          case 'STORE_MANAGER':
-            dashboardPath = '/store/dashboard';
-            console.log('[LoginPage] Redirecting STORE_MANAGER to:', dashboardPath);
-            break;
-          case 'STAFF':
-            dashboardPath = '/store/dashboard';
-            console.log('[LoginPage] Redirecting STAFF to:', dashboardPath);
-            break;
-          default:
-            dashboardPath = '/';
-            console.warn('[LoginPage] Unknown role:', user.role, 'redirecting to home');
-        }
-
+      if (data.status === 'success' && data.data.isActive) {
+        const userData = {
+          ...data.data,
+          storeId: data.data.franchiseId
+        };
+        setUser(userData);
+        
+        console.log('Login successful, user data:', userData);
+        const dashboardPath = data.data.role === 'ADMIN' || data.data.role === 'BRAND_MANAGER' ? '/admin/dashboard' : 
+                              data.data.role === 'SALES' ? '/sales/dashboard' : '/store/dashboard';
+        console.log('Navigating to:', dashboardPath);
         navigate(dashboardPath);
       } else {
-        console.log('[LoginPage] Login failed - credentials not found in user list');
-
-        // Check if email exists but password is wrong
-        const emailExists = users.find(u => u.email === email);
-        if (emailExists) {
-          setError('Invalid password');
-        } else {
-          setError('Email not found in system');
-        }
+        setError('Invalid credentials or inactive account');
       }
     } catch (err) {
-      console.error('[LoginPage] Error during login:', err);
-      setError('An error occurred during login. Please try again.');
-    } finally {
-      setLoading(false);
+      setError('Login failed. Please try again.');
     }
+    
+    setLoading(false);
   };
 
   const styles = `

@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useMember } from '@/integrations';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { useUserStore } from '@/store/userStore';
 
 interface MemberProtectedRouteProps {
   children: ReactNode;
@@ -20,12 +21,11 @@ export function MemberProtectedRoute({
   loadingClassName = "",
 }: MemberProtectedRouteProps) {
   const { isAuthenticated, isLoading, member } = useMember();
+  const { user } = useUserStore();
 
-  // Check if user is in localStorage (most reliable check)
-  const userInStorage = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
-  const isActuallyAuthenticated = isAuthenticated || !!userInStorage;
+  const isActuallyAuthenticated = isAuthenticated || !!user;
 
-  if (isLoading && !userInStorage) {
+  if (isLoading && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <LoadingSpinner
@@ -36,7 +36,7 @@ export function MemberProtectedRoute({
     );
   }
 
-  if (!isActuallyAuthenticated && !member) {
+  if (!isActuallyAuthenticated && !member && !user) {
     return <Navigate to="/login" replace />;
   }
 

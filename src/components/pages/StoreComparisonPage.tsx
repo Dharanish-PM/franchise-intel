@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { motion } from 'framer-motion';
+import { useUserStore } from '@/store/userStore';
 import {
   DollarSign,
   Users,
@@ -51,8 +52,11 @@ interface StoreMetrics {
 }
 
 export default function StoreComparisonPage() {
+  const { user } = useUserStore();
   const [stores, setStores] = useState<Stores[]>([]);
   const [orders, setOrders] = useState<Orders[]>([]);
+  
+  const layoutRole = user?.role === 'ADMIN' ? 'admin' : user?.role === 'BRAND_MANAGER' ? 'brand' : 'store';
   const [customers, setCustomers] = useState<Customers[]>([]);
   const [inventory, setInventory] = useState<InventoryItems[]>([]);
   const [loading, setLoading] = useState(true);
@@ -204,7 +208,7 @@ export default function StoreComparisonPage() {
 
   if (loading) {
     return (
-      <DashboardLayout role="admin">
+      <DashboardLayout role={layoutRole}>
         <div className="flex items-center justify-center h-full">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
@@ -216,7 +220,7 @@ export default function StoreComparisonPage() {
   }
 
   return (
-    <DashboardLayout role="admin">
+    <DashboardLayout role={layoutRole}>
       <div className="p-8 max-w-[100rem] mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>

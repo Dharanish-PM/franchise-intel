@@ -13,13 +13,20 @@ import { motion } from 'framer-motion';
 import { Plus, Store, Mail, MapPin, Phone, ExternalLink, Edit, Trash2, Eye, BarChart3 } from 'lucide-react';
 import { Image } from '@/components/ui/image';
 import { useNavigate } from 'react-router-dom';
+import { useUserStore } from '@/store/userStore';
 
 export default function StoresPage() {
+  const { user } = useUserStore();
+  const navigate = useNavigate();
   const [stores, setStores] = useState<Stores[]>([]);
   const [franchises, setFranchises] = useState<Franchises[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingStore, setEditingStore] = useState<Stores | null>(null);
+  
+  // Determine role for layout
+  const layoutRole = user?.role === 'ADMIN' ? 'admin' : user?.role === 'BRAND_MANAGER' ? 'brand' : 'store';
+  
   const [formData, setFormData] = useState({
     storeName: '',
     address: '',
@@ -30,7 +37,6 @@ export default function StoresPage() {
     operationalStatus: true,
     franchiseId: '',
   });
-  const navigate = useNavigate();
 
   useEffect(() => {
     fetchData();
@@ -124,7 +130,7 @@ export default function StoresPage() {
 
   if (loading) {
     return (
-      <DashboardLayout role="admin">
+      <DashboardLayout role={layoutRole}>
         <div className="flex items-center justify-center h-full">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
@@ -136,7 +142,7 @@ export default function StoresPage() {
   }
 
   return (
-    <DashboardLayout role="admin">
+    <DashboardLayout role={layoutRole}>
       <div className="p-8 max-w-[100rem] mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>

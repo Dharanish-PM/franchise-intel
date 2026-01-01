@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMember } from '@/integrations';
+import { useUserStore } from '@/store/userStore';
 import { Image } from '@/components/ui/image';
 import { Button } from '@/components/ui/button';
 import { 
@@ -55,6 +56,7 @@ const AnimatedElement: React.FC<AnimatedElementProps> = ({ children, className, 
 
 export default function HomePage() {
   const { member, isAuthenticated, isLoading } = useMember();
+  const { user } = useUserStore();
   const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -68,10 +70,15 @@ export default function HomePage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Determine dashboard link based on role (simulated logic from original code)
+  // Determine dashboard link based on role
   const getDashboardLink = () => {
-    const isAdmin = member?.loginEmail?.includes('admin') || member?.loginEmail?.includes('headoffice');
-    return isAdmin ? "/admin/dashboard" : "/store/dashboard";
+    if (user?.role === 'ADMIN' || user?.role === 'BRAND_MANAGER') {
+      return "/admin/dashboard";
+    }
+    if (user?.role === 'SALES') {
+      return "/sales/dashboard";
+    }
+    return "/store/dashboard";
   };
 
   const handleAuthAction = () => {

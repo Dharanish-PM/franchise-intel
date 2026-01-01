@@ -10,7 +10,7 @@ import { motion } from 'framer-motion';
 import { Search, Activity, User, Calendar } from 'lucide-react';
 
 interface ActivityLogPageProps {
-  role: 'admin' | 'store';
+  role: 'admin' | 'store' | 'brand';
 }
 
 export default function ActivityLogPage({ role }: ActivityLogPageProps) {

@@ -13,9 +13,12 @@ import { Image } from '@/components/ui/image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useStoreContext } from '@/store/storeContext';
+import { useInventoryStats } from '@/hooks/use-inventory-stats';
+import { useInventoryItems } from '@/hooks/use-inventory-items';
+import { useUserStore } from '@/store/userStore';
 
 interface InventoryPageProps {
-  role: 'admin' | 'store';
+  role: 'admin' | 'store' | 'brand';
 }
 
 export default function InventoryPage({ role }: InventoryPageProps) {
@@ -24,9 +27,20 @@ export default function InventoryPage({ role }: InventoryPageProps) {
   const [filteredInventory, setFilteredInventory] = useState<InventoryItems[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [stockFilter, setStockFilter] = useState<'all' | 'enough' | 'low' | 'out'>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItems | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [pageSize] = useState(12);
   const { selectedStoreId, setSelectedStoreId } = useStoreContext();
+  const { user } = useUserStore();
+  
+  // Use API stats for the current store/franchise
+  const currentStoreId = selectedStoreId ? parseInt(selectedStoreId) : user?.storeId || user?.franchiseId;
+  const { stats, loading: statsLoading, error: statsError } = useInventoryStats(currentStoreId);
+  const searchTerm = searchQuery.length >= 3 ? searchQuery : '';
+  const stockStatusParam = stockFilter === 'all' ? '' : stockFilter.toUpperCase();
+  const { items: apiItems, pagination, loading: itemsLoading, error: itemsError } = useInventoryItems(currentStoreId, currentPage, pageSize, searchTerm, stockStatusParam);
   const [formData, setFormData] = useState({
     itemName: '',
     sku: '',
@@ -38,13 +52,8 @@ export default function InventoryPage({ role }: InventoryPageProps) {
 
   useEffect(() => {
     const fetchData = async () => {
-      const [inventoryData, storesData] = await Promise.all([
-        BaseCrudService.getAll<InventoryItems>('inventoryitems'),
-        BaseCrudService.getAll<Stores>('stores'),
-      ]);
-      setInventory(inventoryData.items);
+      const storesData = await BaseCrudService.getAll<Stores>('stores');
       setStores(storesData.items);
-      setFilteredInventory(inventoryData.items);
       
       // Set first store as default if not already selected
       if (storesData.items.length > 0 && !selectedStoreId && role === 'store') {
@@ -57,26 +66,14 @@ export default function InventoryPage({ role }: InventoryPageProps) {
     fetchData();
   }, [selectedStoreId, setSelectedStoreId, role]);
 
-  useEffect(() => {
-    let filtered = [...inventory];
-
-    if (searchQuery) {
-      filtered = filtered.filter(item =>
-        item.itemName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.sku?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    setFilteredInventory(filtered);
-  }, [searchQuery, inventory]);
-
-  const totalValue = filteredInventory.reduce((sum, item) => 
-    sum + ((item.currentStock || 0) * (item.unitCost || 0)), 0
-  );
-  const lowStockItems = filteredInventory.filter(item => 
-    (item.currentStock || 0) <= (item.reorderLevel || 0)
-  );
-  const outOfStockItems = filteredInventory.filter(item => (item.currentStock || 0) === 0);
+  // Use API items directly
+  const displayItems = apiItems;
+  
+  const totalValue = statsError ? 0 : stats.totalValue;
+  
+  const totalItems = statsError ? 0 : stats.totalItems;
+  const lowStockCount = statsError ? 0 : stats.lowStockCount;
+  const outOfStockCount = statsError ? 0 : stats.outOfStockCount;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -274,20 +271,6 @@ export default function InventoryPage({ role }: InventoryPageProps) {
           </div>
         </div>
 
-        {/* Search */}
-        <Card className="p-6 bg-white rounded-xl shadow-sm mb-8">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-secondary" />
-            <Input
-              type="text"
-              placeholder="Search inventory..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 font-paragraph"
-            />
-          </div>
-        </Card>
-
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <motion.div
@@ -300,9 +283,13 @@ export default function InventoryPage({ role }: InventoryPageProps) {
                 <div className="p-3 bg-background rounded-xl">
                   <Package className="w-6 h-6 text-primary" />
                 </div>
+                {statsLoading && <div className="w-4 h-4 animate-spin border-2 border-primary border-t-transparent rounded-full" />}
               </div>
               <h3 className="font-paragraph text-sm text-secondary mb-2">Total Items</h3>
-              <p className="font-heading text-4xl text-foreground">{filteredInventory.length}</p>
+              <p className="font-heading text-4xl text-foreground">
+                {statsLoading ? '...' : totalItems}
+              </p>
+              {statsError && <p className="text-xs text-red-500 mt-1">Using local data</p>}
             </Card>
           </motion.div>
 
@@ -316,9 +303,13 @@ export default function InventoryPage({ role }: InventoryPageProps) {
                 <div className="p-3 bg-background rounded-xl">
                   <DollarSign className="w-6 h-6 text-primary" />
                 </div>
+                {statsLoading && <div className="w-4 h-4 animate-spin border-2 border-primary border-t-transparent rounded-full" />}
               </div>
               <h3 className="font-paragraph text-sm text-secondary mb-2">Total Value</h3>
-              <p className="font-heading text-4xl text-foreground">${(totalValue / 1000).toFixed(1)}K</p>
+              <p className="font-heading text-4xl text-foreground">
+                {statsLoading ? '...' : `$${(totalValue / 1000).toFixed(1)}K`}
+              </p>
+              {statsError && <p className="text-xs text-red-500 mt-1">Using local data</p>}
             </Card>
           </motion.div>
 
@@ -332,9 +323,13 @@ export default function InventoryPage({ role }: InventoryPageProps) {
                 <div className="p-3 bg-red-50 rounded-xl">
                   <AlertTriangle className="w-6 h-6 text-destructive" />
                 </div>
+                {statsLoading && <div className="w-4 h-4 animate-spin border-2 border-primary border-t-transparent rounded-full" />}
               </div>
               <h3 className="font-paragraph text-sm text-secondary mb-2">Low Stock</h3>
-              <p className="font-heading text-4xl text-foreground">{lowStockItems.length}</p>
+              <p className="font-heading text-4xl text-foreground">
+                {statsLoading ? '...' : lowStockCount}
+              </p>
+              {statsError && <p className="text-xs text-red-500 mt-1">Using local data</p>}
             </Card>
           </motion.div>
 
@@ -348,138 +343,213 @@ export default function InventoryPage({ role }: InventoryPageProps) {
                 <div className="p-3 bg-red-50 rounded-xl">
                   <TrendingUp className="w-6 h-6 text-destructive" />
                 </div>
+                {statsLoading && <div className="w-4 h-4 animate-spin border-2 border-primary border-t-transparent rounded-full" />}
               </div>
               <h3 className="font-paragraph text-sm text-secondary mb-2">Out of Stock</h3>
-              <p className="font-heading text-4xl text-foreground">{outOfStockItems.length}</p>
+              <p className="font-heading text-4xl text-foreground">
+                {statsLoading ? '...' : outOfStockCount}
+              </p>
+              {statsError && <p className="text-xs text-red-500 mt-1">Using local data</p>}
             </Card>
           </motion.div>
         </div>
 
-        {/* Low Stock Alerts */}
-        {lowStockItems.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.2 }}
-            className="mb-8"
-          >
-            <Card className="p-6 bg-red-50 rounded-xl border border-red-200">
-              <div className="flex items-start space-x-3 mb-4">
-                <AlertTriangle className="w-6 h-6 text-destructive mt-1" />
-                <div>
-                  <h3 className="font-heading text-xl text-foreground mb-2">Low Stock Alerts</h3>
-                  <p className="font-paragraph text-sm text-secondary">
-                    {lowStockItems.length} items need restocking
-                  </p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                {lowStockItems.slice(0, 5).map((item) => (
-                  <div key={item._id} className="flex items-center justify-between p-3 bg-white rounded-lg">
-                    <div>
-                      <p className="font-paragraph text-sm text-foreground font-medium">{item.itemName}</p>
-                      <p className="font-paragraph text-xs text-secondary">SKU: {item.sku}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-paragraph text-sm text-destructive font-medium">
-                        {item.currentStock} units
-                      </p>
-                      <p className="font-paragraph text-xs text-secondary">
-                        Reorder at {item.reorderLevel}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </motion.div>
-        )}
+        {/* Search */}
+        <Card className="p-6 bg-white rounded-xl shadow-sm mb-8">
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-secondary" />
+              <Input
+                type="text"
+                placeholder="Search inventory..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(0);
+                }}
+                className="pl-10 font-paragraph"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant={stockFilter === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  setStockFilter('all');
+                  setCurrentPage(0);
+                }}
+                className="rounded-lg"
+              >
+                All
+              </Button>
+              <Button
+                variant={stockFilter === 'enough' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  setStockFilter('enough');
+                  setCurrentPage(0);
+                }}
+                className="rounded-lg"
+              >
+                Enough Stock
+              </Button>
+              <Button
+                variant={stockFilter === 'low' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  setStockFilter('low');
+                  setCurrentPage(0);
+                }}
+                className="rounded-lg"
+              >
+                Low Stock
+              </Button>
+              <Button
+                variant={stockFilter === 'out' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  setStockFilter('out');
+                  setCurrentPage(0);
+                }}
+                className="rounded-lg"
+              >
+                Out of Stock
+              </Button>
+            </div>
+          </div>
+        </Card>
 
         {/* Inventory Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredInventory.map((item, index) => (
-            <motion.div
-              key={item._id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: index * 0.02 }}
-            >
-              <Card className="p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                {item.itemImage && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 min-h-[400px] relative">
+          {itemsLoading && (
+            <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-10 col-span-full">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="font-paragraph text-secondary">Loading items...</p>
+              </div>
+            </div>
+          )}
+          {displayItems.map((item, index) => {
+            const itemId = 'itemId' in item ? item.itemId : item._id;
+            const itemName = 'itemName' in item ? item.itemName : '';
+            const stock = 'stock' in item ? item.stock : item.currentStock || 0;
+            const reorderValue = 'reorderValue' in item ? item.reorderValue : item.reorderLevel || 0;
+            const costPerQuantity = 'costPerQuantity' in item ? item.costPerQuantity : item.unitCost || 0;
+            const totalValue = 'totalValue' in item ? item.totalValue : stock * costPerQuantity;
+            const itemImage = 'imageUrl' in item ? item.imageUrl : ('itemImage' in item ? item.itemImage : null);
+            
+            return (
+              <motion.div
+                key={itemId}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: index * 0.02 }}
+              >
+                <Card className="p-4 bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow">
                   <div className="mb-3">
                     <Image
-                      src={item.itemImage}
-                      alt={item.itemName || 'Item image'}
+                      src={itemImage || 'https://via.placeholder.com/200x128?text=No+Image'}
+                      alt={itemName || 'Item image'}
                       width={200}
                       className="w-full h-32 object-cover rounded-lg"
                     />
                   </div>
-                )}
-                <h3 className="font-heading text-lg text-foreground mb-1">{item.itemName}</h3>
-                <p className="font-paragraph text-xs text-secondary mb-3">SKU: {item.sku}</p>
-                
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center justify-between">
-                    <span className="font-paragraph text-xs text-secondary">Stock</span>
-                    <Badge
-                      className={`${
-                        (item.currentStock || 0) === 0 ? 'bg-red-100 text-red-800' :
-                        (item.currentStock || 0) <= (item.reorderLevel || 0) ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-green-100 text-green-800'
-                      }`}
-                    >
-                      {item.currentStock} units
-                    </Badge>
+                  <h3 className="font-heading text-lg text-foreground mb-1">{itemName}</h3>
+                  
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center justify-between">
+                      <span className="font-paragraph text-xs text-secondary">Stock</span>
+                      <Badge
+                        className={`${
+                          stock === 0 ? 'bg-red-100 text-red-800' :
+                          stock <= (reorderValue || 0) ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-green-100 text-green-800'
+                        }`}
+                      >
+                        {stock} units
+                      </Badge>
+                    </div>
+                    {reorderValue !== null && (
+                      <div className="flex items-center justify-between">
+                        <span className="font-paragraph text-xs text-secondary">Reorder Level</span>
+                        <span className="font-paragraph text-xs text-foreground">{reorderValue}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <span className="font-paragraph text-xs text-secondary">Unit Cost</span>
+                      <span className="font-paragraph text-xs text-foreground font-medium">
+                        ${(costPerQuantity / 100).toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+                      <span className="font-paragraph text-xs text-secondary">Total Value</span>
+                      <span className="font-paragraph text-sm text-foreground font-medium">
+                        ${(totalValue / 100).toFixed(2)}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="font-paragraph text-xs text-secondary">Reorder Level</span>
-                    <span className="font-paragraph text-xs text-foreground">{item.reorderLevel}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="font-paragraph text-xs text-secondary">Unit Cost</span>
-                    <span className="font-paragraph text-xs text-foreground font-medium">
-                      ${item.unitCost?.toFixed(2)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between pt-2 border-t border-gray-200">
-                    <span className="font-paragraph text-xs text-secondary">Total Value</span>
-                    <span className="font-paragraph text-sm text-foreground font-medium">
-                      ${((item.currentStock || 0) * (item.unitCost || 0)).toFixed(2)}
-                    </span>
-                  </div>
-                </div>
 
-                <div className="flex space-x-2">
-                  <Button
-                    onClick={() => handleEdit(item)}
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 rounded-lg"
-                  >
-                    <Edit className="w-4 h-4 mr-1" />
-                    Edit
-                  </Button>
-                  <Button
-                    onClick={() => handleDelete(item._id)}
-                    variant="outline"
-                    size="sm"
-                    className="rounded-lg text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </Card>
-            </motion.div>
-          ))}
+                  {!itemsError && (
+                    <div className="flex space-x-2">
+                      <Button
+                        onClick={() => handleEdit(item as any)}
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 rounded-lg"
+                      >
+                        <Edit className="w-4 h-4 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        onClick={() => handleDelete(String(itemId))}
+                        variant="outline"
+                        size="sm"
+                        className="rounded-lg text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
+                </Card>
+              </motion.div>
+            );
+          })}
         </div>
 
-        {filteredInventory.length === 0 && (
+        {displayItems.length === 0 && (
           <div className="text-center py-12">
             <Package className="w-16 h-16 text-secondary mx-auto mb-4" />
             <h3 className="font-heading text-2xl text-foreground mb-2">No items found</h3>
             <p className="font-paragraph text-secondary">
               {searchQuery ? 'Try adjusting your search' : 'Get started by adding your first item'}
             </p>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {!itemsError && pagination.totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2 mt-8">
+            <Button
+              onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+              disabled={currentPage === 0}
+              variant="outline"
+              size="sm"
+              className="rounded-lg"
+            >
+              Previous
+            </Button>
+            <span className="font-paragraph text-sm text-secondary px-4">
+              Page {currentPage + 1} of {pagination.totalPages}
+            </span>
+            <Button
+              onClick={() => setCurrentPage(prev => Math.min(pagination.totalPages - 1, prev + 1))}
+              disabled={currentPage >= pagination.totalPages - 1}
+              variant="outline"
+              size="sm"
+              className="rounded-lg"
+            >
+              Next
+            </Button>
           </div>
         )}
       </div>

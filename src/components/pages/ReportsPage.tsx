@@ -9,7 +9,7 @@ import { motion } from 'framer-motion';
 import { Download, FileText, Calendar, TrendingUp } from 'lucide-react';
 
 interface ReportsPageProps {
-  role: 'admin' | 'store';
+  role: 'admin' | 'store' | 'brand';
 }
 
 export default function ReportsPage({ role }: ReportsPageProps) {

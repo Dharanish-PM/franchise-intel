@@ -9,13 +9,17 @@ import { motion } from 'framer-motion';
 import { MapPin, Phone, Mail, ExternalLink, Store, ShoppingCart, Package, DollarSign } from 'lucide-react';
 import { Image } from '@/components/ui/image';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useUserStore } from '@/store/userStore';
 
 export default function StoreProfilePage() {
   const { storeId } = useParams();
+  const { user } = useUserStore();
   const [store, setStore] = useState<Stores | null>(null);
   const [orders, setOrders] = useState<Orders[]>([]);
   const [inventory, setInventory] = useState<InventoryItems[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  const layoutRole = user?.role === 'ADMIN' ? 'admin' : user?.role === 'BRAND_MANAGER' ? 'brand' : 'store';
 
   useEffect(() => {
     const fetchData = async () => {
@@ -38,7 +42,7 @@ export default function StoreProfilePage() {
 
   if (loading) {
     return (
-      <DashboardLayout role="admin">
+      <DashboardLayout role={layoutRole}>
         <div className="flex items-center justify-center h-full">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
@@ -51,7 +55,7 @@ export default function StoreProfilePage() {
 
   if (!store) {
     return (
-      <DashboardLayout role="admin">
+      <DashboardLayout role={layoutRole}>
         <div className="p-8 text-center">
           <h2 className="font-heading text-3xl text-foreground">Store not found</h2>
         </div>
@@ -74,7 +78,7 @@ export default function StoreProfilePage() {
   ];
 
   return (
-    <DashboardLayout role="admin">
+    <DashboardLayout role={layoutRole}>
       <div className="p-8 max-w-[100rem] mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

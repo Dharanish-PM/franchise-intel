@@ -8,12 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
-import { Search, Download, Users, TrendingUp, DollarSign, ShoppingCart } from 'lucide-react';
+import { Search, Download, Users } from 'lucide-react';
 import { BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useStoreContext } from '@/store/storeContext';
 
 interface CustomerAnalyticsPageProps {
-  role: 'admin' | 'store';
+  role: 'admin' | 'store' | 'brand';
 }
 
 export default function CustomerAnalyticsPage({ role }: CustomerAnalyticsPageProps) {
@@ -188,7 +188,7 @@ export default function CustomerAnalyticsPage({ role }: CustomerAnalyticsPagePro
         </Card>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-6 mb-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -202,54 +202,6 @@ export default function CustomerAnalyticsPage({ role }: CustomerAnalyticsPagePro
               </div>
               <h3 className="font-paragraph text-sm text-secondary mb-2">Total Customers</h3>
               <p className="font-heading text-4xl text-foreground">{filteredCustomers.length}</p>
-            </Card>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.05 }}
-          >
-            <Card className="p-6 bg-white rounded-xl shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-background rounded-xl">
-                  <DollarSign className="w-6 h-6 text-primary" />
-                </div>
-              </div>
-              <h3 className="font-paragraph text-sm text-secondary mb-2">Total Spend</h3>
-              <p className="font-heading text-4xl text-foreground">${(totalSpend / 1000).toFixed(1)}K</p>
-            </Card>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
-          >
-            <Card className="p-6 bg-white rounded-xl shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-background rounded-xl">
-                  <TrendingUp className="w-6 h-6 text-primary" />
-                </div>
-              </div>
-              <h3 className="font-paragraph text-sm text-secondary mb-2">Avg Customer Value</h3>
-              <p className="font-heading text-4xl text-foreground">${avgSpend.toFixed(2)}</p>
-            </Card>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.15 }}
-          >
-            <Card className="p-6 bg-white rounded-xl shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-background rounded-xl">
-                  <ShoppingCart className="w-6 h-6 text-primary" />
-                </div>
-              </div>
-              <h3 className="font-paragraph text-sm text-secondary mb-2">Total Orders</h3>
-              <p className="font-heading text-4xl text-foreground">{totalOrders}</p>
             </Card>
           </motion.div>
         </div>

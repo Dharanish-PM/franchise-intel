@@ -19,6 +19,13 @@ import InventoryPage from '@/components/pages/InventoryPage';
 import ReportsPage from '@/components/pages/ReportsPage';
 import ActivityLogPage from '@/components/pages/ActivityLogPage';
 import StoreComparisonPage from '@/components/pages/StoreComparisonPage';
+import InventoryRequestsPage from '@/components/pages/InventoryRequestsPage';
+import RequestManagementPage from '@/components/pages/RequestManagementPage';
+import ShipmentsPage from '@/components/pages/ShipmentsPage';
+import CreateOrderPage from '@/components/pages/CreateOrderPage';
+import ReturnsManagementPage from '@/components/pages/ReturnsManagementPage';
+import SalesOrdersPage from '@/components/pages/SalesOrdersPage';
+import SalesDashboardPage from '@/components/pages/SalesDashboardPage';
 
 // Layout component that includes ScrollToTop
 function Layout() {
@@ -62,7 +69,7 @@ const router = createBrowserRouter([
         ),
       },
       {
-        path: "admin/franchises",
+        path: "admin/brands",
         element: (
           <MemberProtectedRoute>
             <FranchisesPage />
@@ -97,7 +104,7 @@ const router = createBrowserRouter([
         path: "admin/orders",
         element: (
           <MemberProtectedRoute>
-            <OrderAnalyticsPage role="admin" />
+            <OrderAnalyticsPage role="brand" />
           </MemberProtectedRoute>
         ),
       },
@@ -105,7 +112,7 @@ const router = createBrowserRouter([
         path: "admin/customers",
         element: (
           <MemberProtectedRoute>
-            <CustomerAnalyticsPage role="admin" />
+            <CustomerAnalyticsPage role="brand" />
           </MemberProtectedRoute>
         ),
       },
@@ -113,7 +120,7 @@ const router = createBrowserRouter([
         path: "admin/inventory",
         element: (
           <MemberProtectedRoute>
-            <InventoryPage role="admin" />
+            <InventoryPage role="brand" />
           </MemberProtectedRoute>
         ),
       },
@@ -121,7 +128,7 @@ const router = createBrowserRouter([
         path: "admin/reports",
         element: (
           <MemberProtectedRoute>
-            <ReportsPage role="admin" />
+            <ReportsPage role="brand" />
           </MemberProtectedRoute>
         ),
       },
@@ -129,7 +136,23 @@ const router = createBrowserRouter([
         path: "admin/activity",
         element: (
           <MemberProtectedRoute>
-            <ActivityLogPage role="admin" />
+            <ActivityLogPage role="brand" />
+          </MemberProtectedRoute>
+        ),
+      },
+      {
+        path: "admin/request-management",
+        element: (
+          <MemberProtectedRoute>
+            <RequestManagementPage role="brand" />
+          </MemberProtectedRoute>
+        ),
+      },
+      {
+        path: "admin/shipments",
+        element: (
+          <MemberProtectedRoute>
+            <ShipmentsPage role="brand" />
           </MemberProtectedRoute>
         ),
       },
@@ -167,6 +190,22 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: "store/inventory-requests",
+        element: (
+          <MemberProtectedRoute>
+            <InventoryRequestsPage role="store" />
+          </MemberProtectedRoute>
+        ),
+      },
+      {
+        path: "store/shipments",
+        element: (
+          <MemberProtectedRoute>
+            <ShipmentsPage role="store" />
+          </MemberProtectedRoute>
+        ),
+      },
+      {
         path: "store/reports",
         element: (
           <MemberProtectedRoute>
@@ -179,6 +218,39 @@ const router = createBrowserRouter([
         element: (
           <MemberProtectedRoute>
             <StoreProfilePage />
+          </MemberProtectedRoute>
+        ),
+      },
+      // Sales Routes
+      {
+        path: "sales/dashboard",
+        element: (
+          <MemberProtectedRoute messageToSignIn="Sign in to access your sales dashboard">
+            <SalesDashboardPage />
+          </MemberProtectedRoute>
+        ),
+      },
+      {
+        path: "sales/create-order",
+        element: (
+          <MemberProtectedRoute>
+            <CreateOrderPage />
+          </MemberProtectedRoute>
+        ),
+      },
+      {
+        path: "sales/orders",
+        element: (
+          <MemberProtectedRoute>
+            <SalesOrdersPage />
+          </MemberProtectedRoute>
+        ),
+      },
+      {
+        path: "sales/returns",
+        element: (
+          <MemberProtectedRoute>
+            <ReturnsManagementPage />
           </MemberProtectedRoute>
         ),
       },

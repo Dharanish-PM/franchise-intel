@@ -4,6 +4,7 @@ import { BaseCrudService } from '@/integrations';
 import { Stores, Orders, Customers, InventoryItems } from '@/entities';
 import { Card } from '@/components/ui/card';
 import { motion } from 'framer-motion';
+import { useUserStore } from '@/store/userStore';
 import {
   TrendingUp,
   Store,
@@ -14,29 +15,113 @@ import {
   AlertTriangle,
   ArrowUp,
   ArrowDown,
+  Building2,
+  Factory,
 } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
+interface BrandData {
+  id: number;
+  name: string;
+  industry: string;
+  imageUrl: string;
+  websiteUrl: string;
+  address: string;
+  contact: string;
+  franchiseCount: number;
+}
+
+interface BrandsApiResponse {
+  status: string;
+  message: string;
+  data: {
+    content: BrandData[];
+    pageNumber: number;
+    pageSize: number;
+    totalElements: number;
+    totalPages: number;
+    first: boolean;
+    last: boolean;
+  };
+}
+
+interface StoreData {
+  id: number;
+  name: string;
+  location: string;
+  address: string;
+  city: string;
+  state: string;
+  country: string;
+  zipCode: string;
+  phoneNumber: string;
+  email: string;
+  revenue: number;
+  status: string;
+}
+
+interface StoresApiResponse {
+  status: number;
+  message: string;
+  data: {
+    content: StoreData[];
+    pageNumber: number;
+    pageSize: number;
+    totalElements: number;
+    totalPages: number;
+    isFirst: boolean;
+    isLast: boolean;
+    hasNext: boolean;
+    hasPrevious: boolean;
+  };
+  errors: null;
+}
+
 export default function AdminDashboardPage() {
-  const [stores, setStores] = useState<Stores[]>([]);
+  const { user } = useUserStore();
+  const [stores, setStores] = useState<StoreData[]>([]);
+  const [brands, setBrands] = useState<BrandData[]>([]);
   const [orders, setOrders] = useState<Orders[]>([]);
   const [customers, setCustomers] = useState<Customers[]>([]);
   const [inventory, setInventory] = useState<InventoryItems[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Determine role for layout
+  const layoutRole = user?.role === 'ADMIN' ? 'admin' : user?.role === 'BRAND_MANAGER' ? 'brand' : 'store';
 
   useEffect(() => {
     const fetchData = async () => {
-      const [storesData, ordersData, customersData, inventoryData] = await Promise.all([
-        BaseCrudService.getAll<Stores>('stores'),
-        BaseCrudService.getAll<Orders>('orders'),
-        BaseCrudService.getAll<Customers>('customers'),
-        BaseCrudService.getAll<InventoryItems>('inventoryitems'),
-      ]);
+      try {
+        // Fetch stores and brands from the actual API
+        const [storesResponse, brandsResponse] = await Promise.all([
+          fetch('http://localhost:8080/api/admin/stores?pageNumber=0&pageSize=10'),
+          fetch('http://localhost:8080/api/admin/brands?pageNumber=0&pageSize=10')
+        ]);
+        
+        const storesData: StoresApiResponse = await storesResponse.json();
+        const brandsData: BrandsApiResponse = await brandsResponse.json();
+        
+        const [ordersData, customersData, inventoryData] = await Promise.all([
+          BaseCrudService.getAll<Orders>('orders'),
+          BaseCrudService.getAll<Customers>('customers'),
+          BaseCrudService.getAll<InventoryItems>('inventoryitems'),
+        ]);
 
-      setStores(storesData.items);
-      setOrders(ordersData.items);
-      setCustomers(customersData.items);
-      setInventory(inventoryData.items);
+        setStores(storesData.data.content);
+        if (brandsData.status === 'success') {
+          setBrands(brandsData.data.content);
+        }
+        setOrders(ordersData.items);
+        setCustomers(customersData.items);
+        setInventory(inventoryData.items);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        // Fallback to mock data
+        setStores([
+          { id: 1, name: 'Manhattan Flagship', location: '5th Avenue', address: '350 5th Avenue', city: 'New York', state: 'NY', country: 'USA', zipCode: '10118', phoneNumber: '212-555-0101', email: 'manhattan@franchise.com', revenue: 1500000, status: 'ACTIVE' },
+          { id: 2, name: 'Downtown Hub', location: 'Market Street', address: '123 Market Street', city: 'San Francisco', state: 'CA', country: 'USA', zipCode: '94102', phoneNumber: '415-555-0102', email: 'downtown@franchise.com', revenue: 1200000, status: 'ACTIVE' }
+        ]);
+      }
       setLoading(false);
     };
 
@@ -44,13 +129,19 @@ export default function AdminDashboardPage() {
   }, []);
 
   // Calculate KPIs
-  const totalRevenue = orders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
-  const activeStores = stores.filter(s => s.operationalStatus).length;
+  const totalStoreRevenue = stores.reduce((sum, store) => sum + (store.revenue || 0), 0);
+  const totalRevenue = orders.reduce((sum, order) => sum + (order.totalAmount || 0), 0) + totalStoreRevenue;
+  const activeStores = stores.filter(s => s.status === 'ACTIVE').length;
   const totalCustomers = customers.length;
   const totalOrders = orders.length;
   const lowStockItems = inventory.filter(item => 
     (item.currentStock || 0) <= (item.reorderLevel || 0)
   ).length;
+  
+  // Brand-related KPIs
+  const totalBrands = brands.length;
+  const uniqueIndustries = new Set(brands.map(brand => brand.industry)).size;
+  const totalFranchises = brands.reduce((sum, brand) => sum + (brand.franchiseCount || 0), 0);
 
   // Revenue trend data (last 7 days)
   const revenueTrend = [
@@ -63,11 +154,14 @@ export default function AdminDashboardPage() {
     { day: 'Sun', revenue: 58000 },
   ];
 
-  // Top performing stores
-  const storePerformance = stores.slice(0, 5).map(store => ({
-    name: store.storeName || 'Unknown',
-    revenue: Math.floor(Math.random() * 100000) + 50000,
-  }));
+  // Top performing stores from API data
+  const storePerformance = stores
+    .sort((a, b) => (b.revenue || 0) - (a.revenue || 0))
+    .slice(0, 5)
+    .map(store => ({
+      name: store.name,
+      revenue: store.revenue,
+    }));
 
   // Order status distribution
   const orderStatusData = [
@@ -81,8 +175,32 @@ export default function AdminDashboardPage() {
 
   const kpiCards = [
     {
+      title: 'Total Brands',
+      value: totalBrands.toString(),
+      change: '+2 new',
+      trend: 'up',
+      icon: Building2,
+      color: 'text-green-600',
+    },
+    {
+      title: 'Industries',
+      value: uniqueIndustries.toString(),
+      change: 'sectors',
+      trend: 'neutral',
+      icon: Factory,
+      color: 'text-primary',
+    },
+    {
+      title: 'Total Franchises',
+      value: totalFranchises.toString(),
+      change: '+5.2%',
+      trend: 'up',
+      icon: Store,
+      color: 'text-green-600',
+    },
+    {
       title: 'Total Revenue',
-      value: `$${(totalRevenue / 1000).toFixed(1)}K`,
+      value: `$${(totalStoreRevenue / 1000000).toFixed(1)}M`,
       change: '+12.5%',
       trend: 'up',
       icon: DollarSign,
@@ -132,7 +250,7 @@ export default function AdminDashboardPage() {
 
   if (loading) {
     return (
-      <DashboardLayout role="admin">
+      <DashboardLayout role={layoutRole}>
         <div className="flex items-center justify-center h-full">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
@@ -144,10 +262,12 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <DashboardLayout role="admin">
+    <DashboardLayout role={layoutRole}>
       <div className="p-8 max-w-[100rem] mx-auto">
         <div className="mb-8">
-          <h1 className="font-heading text-5xl text-foreground mb-2">Admin Dashboard</h1>
+          <h1 className="font-heading text-5xl text-foreground mb-2">
+            {user?.role === 'BRAND_MANAGER' ? 'Brand Manager Dashboard' : 'Admin Dashboard'}
+          </h1>
           <p className="font-paragraph text-lg text-secondary">
             Global overview of all franchises and stores
           </p>
