@@ -1,25 +1,24 @@
 package com.franchiseintel.dto;
 
+import com.franchiseintel.enums.OrderStatus;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class OrderDTO {
     private Long id;
-    private String orderNumber;
-    private LocalDateTime orderDate;
+    private Long franchiseId;
+    private String franchiseName;
+    private Long customerId;
     private String customerName;
-    private String storeName;
-    private Double totalAmount;
-    private String orderStatus;
-    private String paymentMethod;
-    private LocalDateTime createdDate;
-    private LocalDateTime updatedDate;
+    private LocalDateTime orderDate;
+    private BigDecimal totalAmount;
+    private String paymentMode;
+    private OrderStatus status;
 }
-

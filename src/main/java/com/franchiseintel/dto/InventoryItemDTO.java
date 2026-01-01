@@ -1,25 +1,23 @@
 package com.franchiseintel.dto;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class InventoryItemDTO {
     private Long id;
-    private String itemName;
-    private String sku;
-    private Integer currentStock;
-    private Integer reorderLevel;
-    private Double unitCost;
-    private String itemImage;
-    private LocalDateTime createdDate;
-    private LocalDateTime updatedDate;
+    private Long franchiseId;
+    private String franchiseName;
+    private Long productId;
+    private String productName;
+    private String productCategory;
+    private BigDecimal productPrice;
+    private Integer quantity;
+    private LocalDateTime lastUpdated;
 }
-
